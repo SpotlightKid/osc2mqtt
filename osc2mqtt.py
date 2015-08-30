@@ -44,7 +44,7 @@ def on_message(client, userdata, msg):
     if userdata.get('osc_receiver'):
         try:
             values = json.loads(msg.payload.decode('utf-8'))
-        except TypeError:
+        except (TypeError, ValueError):
             values = [msg.payload]
 
         if isinstance(values, (int, float)):
