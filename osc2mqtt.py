@@ -114,7 +114,7 @@ def main(args=None):
     userdata['osc'] = oscserver
     oscserver.add_method(None, None, handle_osc, userdata)
 
-    mqtt_host, mqtt_port = parse_hostport(args.mqtt_broker)
+    mqtt_host, mqtt_port = parse_hostport(args.mqtt_broker, 1883)
     log.info("Connecting to MQTT broker %s:%s ...", mqtt_host, mqtt_port)
     mqttclient.connect(mqtt_host, mqtt_port)
 
