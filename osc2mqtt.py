@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Bridge bewteen OSC and MQTT."""
+"""Bridge between OSC and MQTT."""
 
 from __future__ import print_function, unicode_literals
 
