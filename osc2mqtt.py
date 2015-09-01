@@ -5,7 +5,6 @@
 from __future__ import print_function, unicode_literals
 
 import argparse
-import ipaddress
 import json
 import logging
 import sys
@@ -32,7 +31,7 @@ def handle_osc(oscaddr, values, types, clientaddr, userdata):
 
 def on_connect(client, userdata, flags, rc):
     log.debug("MQTT connect: %s", mqtt.connack_string(rc))
-    client.subscribe('#')
+    client.subscribe(b'#' if isinstance(b'', str) else '#')
 
 
 def on_disconnect(client, userdata, rc):
