@@ -34,12 +34,13 @@ Topic :: Multimedia :: Sound/Audio
 """
 name = 'osc2mqtt'
 url = 'https://github.com/SpotlightKid/%s' % name.lower()
+readme = open('README.rst', encoding='utf-8').read()
 
 setup(
     name = name,
     version = '0.1b1',
     description = __doc__.splitlines()[0],
-    long_description = open('README.md', encoding='utf-8').read(),
+    long_description = "\n".join(readme.splitlines()[2:]),
     keywords = 'osc mqtt iot',
     classifiers = [c.strip() for c in classifiers.splitlines()
         if c.strip() and not c.startswith('#')],
