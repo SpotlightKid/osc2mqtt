@@ -3,7 +3,7 @@
 #
 # setup.py - Setup file for the osc2mqtt project.
 #
-"""An OSC to MQTT bridge based on pyliblo and paho.mqtt."""
+"""An OSC to MQTT bridge based on pyliblo and paho-mqtt."""
 
 from io import open
 from setuptools import setup
@@ -53,7 +53,7 @@ setup(
     platforms = 'POSIX, Windows, MacOS X',
     py_modules = ['osc2mqtt'],
     install_requires = [
-        'paho.mqtt',
+        'paho-mqtt',
         'pyliblo',
     ],
     entry_points = {
