@@ -18,13 +18,21 @@ import paho.mqtt.client as mqtt
 log = logging.getLogger('osc2mqtt')
 
 
-def handle_osc(oscaddr, values, types, clientaddr, userdata):
-    log.debug("OSC recv: %s %r", oscaddr, values)
+def from_osc(addr, values, types, data):
     if len(values) > 1:
         msg = json.dumps(values)
     else:
         msg = values[0]
-    topic = userdata['prefix'] + oscaddr
+        if msg in [0, 1, 0.0, 1.0]:
+            msg = chr(int(msg))
+
+    topic = (data['prefix'] + addr).lstrip('/')
+    return topic, msg
+
+
+def handle_osc(oscaddr, values, types, clientaddr, userdata):
+    log.debug("OSC recv: %s %r", oscaddr, values)
+    topic, msg = from_osc(oscaddr, values, types, userdata)
     log.debug("MQTT publish: %s %s", topic, msg)
     userdata['mqtt'].publish(topic, msg)
 
@@ -38,18 +46,29 @@ def on_disconnect(client, userdata, rc):
     log.debug("MQTT disconnect: %s", mqtt.error_string(rc))
 
 
+def to_osc(topic, msg, data):
+    try:
+        # decodes JSON but also numeral literals like 42 or 3.14159
+        values = json.loads(msg.decode('utf-8'))
+    except (TypeError, ValueError):
+        if len(msg) == 1:
+            values = [ord(msg)]
+        else:
+            # XXX: try to decode multi-byte values as well?
+            # Which default format should we assume?
+            values = [msg]
+
+    if isinstance(values, (int, float)):
+        values = [values]
+
+    addr = '/' + topic.lstrip(data.get('prefix', '')).lstrip('/')
+    return addr, values
+
+
 def on_message(client, userdata, msg):
     log.debug("MQTT recv: %s %r", msg.topic, msg.payload)
     if userdata.get('osc_receiver'):
-        try:
-            values = json.loads(msg.payload.decode('utf-8'))
-        except (TypeError, ValueError):
-            values = [msg.payload]
-
-        if isinstance(values, (int, float)):
-            values = [values]
-
-        addr = '/' + msg.topic.lstrip(userdata.get('prefix', '')).lstrip('/')
+        addr, values = to_osc(msg.topic, msg.payload, userdata)
         log.debug("OSC send: %s %r", addr, values)
         userdata['osc'].send(userdata['osc_receiver'], addr, *values)
 
