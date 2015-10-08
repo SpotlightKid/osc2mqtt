@@ -56,8 +56,8 @@ class Osc2MqttConverter(object):
         'float': float,
         'i': int,
         'int': int,
-        's': None,
-        'str': None,
+        's': str,
+        'str': str,
         'b': as_bool,
         'bool': as_bool
     }
