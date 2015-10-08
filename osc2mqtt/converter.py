@@ -125,7 +125,7 @@ class Osc2MqttConverter(object):
         if rule:
             addr = re.sub(rule.match, rule.address, topic)
             values = self.decode_values(payload, rule)
-            log.debug("Decoded payload to values: %s --> %r", payload, values)
+            log.debug("Decoded payload to values: %r --> %r", payload, values)
 
             if rule.osctags:
                 values = tuple(zip(rule.osctags, values))
@@ -164,7 +164,7 @@ class Osc2MqttConverter(object):
         if rule:
             topic = re.sub(rule.match, rule.topic, addr)
             data = self.encode_values(values, rule)
-            log.debug("Encoded values to payload: %s --> %r", values, data)
+            log.debug("Encoded values to payload: %r --> %r", values, data)
             return topic, data
 
     def encode_values(self, values, rule):
