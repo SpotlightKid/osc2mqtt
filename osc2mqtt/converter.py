@@ -11,7 +11,7 @@ import logging
 
 from collections import namedtuple
 
-from util import as_bool, parse_list
+from .util import as_bool, parse_list
 
 try:
     # Python 3.2+

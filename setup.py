@@ -38,7 +38,7 @@ readme = open('README.rst', encoding='utf-8').read()
 
 setup(
     name = name,
-    version = '0.1b2',
+    version = '0.1b1',
     description = __doc__.splitlines()[0],
     long_description = "\n".join(readme.splitlines()[2:]),
     keywords = 'osc mqtt iot',
@@ -47,18 +47,18 @@ setup(
     author = 'Christopher Arndt',
     author_email = 'chris@chrisarndt.de',
     url = url,
-    repository = 'https://github.com/SpotlightKid/%s' % name.lower(),
+    repository = url,
     download_url = url + '/releases',
     license = 'MIT License',
     platforms = 'POSIX, Windows, MacOS X',
-    py_modules = ['osc2mqtt'],
+    packages = ['osc2mqtt'],
     install_requires = [
         'paho-mqtt',
         'pyliblo',
     ],
     entry_points = {
         'console_scripts': [
-            'osc2mqtt = osc2mqtt:main'
+            'osc2mqtt = osc2mqtt.__main__:main'
         ]
     },
     zip_safe = True

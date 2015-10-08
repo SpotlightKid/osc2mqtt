@@ -16,8 +16,8 @@ from collections import OrderedDict
 import liblo
 import paho.mqtt.client as mqtt
 
-from converter import Osc2MqttConverter, ConversionRule
-from util import as_bool, parse_hostport, parse_list
+from .converter import Osc2MqttConverter, ConversionRule
+from .util import as_bool, parse_hostport, parse_list
 
 
 log = logging.getLogger('osc2mqtt')

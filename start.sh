@@ -7,4 +7,4 @@ MQTT_HOST="dockstar3"
 MQTT_PORT="1883"
 OSC_PORT="9001"
 
-python osc2mqtt.py -m $MQTT_HOST:$MQTT_PORT -p $OSC_PORT "$@"
+PYTHONPATH=$(pwd) python -m osc2mqtt -m $MQTT_HOST:$MQTT_PORT -p $OSC_PORT "$@"
