@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# start osc2mqtt.py OSC to MQQT bridge with proper hosts and ports
+# start osc2mqtt.py OSC to MQTT bridge with proper hosts and ports
 #
 
 MQTT_HOST="dockstar3"
