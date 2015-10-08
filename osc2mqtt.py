@@ -11,6 +11,8 @@ import shlex
 import sys
 import time
 
+from collections import OrderedDict
+
 import liblo
 import paho.mqtt.client as mqtt
 
@@ -22,7 +24,7 @@ log = logging.getLogger('osc2mqtt')
 
 
 def read_config(fn, options="options"):
-    config = {'rules': {}}
+    config = {'rules': OrderedDict()}
     defaults = dict(
         match = '^/?(.*)',
         address = r'/\1',
@@ -115,18 +117,22 @@ class Osc2MqttBridge(object):
 
     def handle_mqtt(self, client, userdata, msg):
         log.debug("MQTT recv: %s %r", msg.topic, msg.payload)
-        if self.osc_receiver:
-            res = self.converter.from_mqtt(msg.topic, msg.payload)
-            if res:
+        res = self.converter.from_mqtt(msg.topic, msg.payload)
+        if res:
+            if self.osc_receiver:
                 log.debug("OSC send: %s %r", *res)
                 self.oscserver.send(self.osc_receiver, res[0], *res[1])
+        else:
+            log.debug("No rule match for MQTT topic '%s'.", msg.topic)
 
     def handle_osc(self, oscaddr, values, tags, clientaddr, userdata):
         log.debug("OSC recv: %s %r", oscaddr, values)
         res = self.converter.from_osc(oscaddr, values, tags)
         if res:
-            log.debug("MQTT publish: %s %s", *res)
+            log.debug("MQTT publish: %s %r", *res)
             self.mqttclient.publish(*res)
+        else:
+            log.debug("No rule match for OSC address '%s'.", oscaddr)
 
 
 def main(args=None):
