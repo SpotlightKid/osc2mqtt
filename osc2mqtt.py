@@ -2,91 +2,140 @@
 # -*- coding: utf-8 -*-
 """Bridge between OSC and MQTT."""
 
-from __future__ import print_function, unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import argparse
-import json
+import configparser
 import logging
+import shlex
 import sys
 import time
 
 import liblo
-
 import paho.mqtt.client as mqtt
+
+from converter import Osc2MqttConverter, ConversionRule
+from util import as_bool, parse_hostport, parse_list
 
 
 log = logging.getLogger('osc2mqtt')
 
 
-def from_osc(addr, values, types, data):
-    if len(values) > 1:
-        msg = json.dumps(values)
-    else:
-        msg = values[0]
-        if msg in [0, 1, 0.0, 1.0]:
-            msg = chr(int(msg))
+def read_config(fn, options="options"):
+    config = {'rules': {}}
+    defaults = dict(
+        match = '^/?(.*)',
+        address = r'/\1',
+        topic = r'\1',
+        type = 'struct',
+        format = 'B',
+        from_mqtt = None,
+        from_osc = None,
+        osctags = None
+    )
 
-    topic = (data['prefix'] + addr).lstrip('/')
-    return topic, msg
+    if fn:
+        cp = configparser.RawConfigParser(defaults)
+        cp.read(fn)
+        if cp.has_section(options):
+            config.update(i for i in cp.items(options)
+                          if i not in cp.items('DEFAULT'))
 
+        for section in cp.sections():
+            if section.startswith(':'):
+                name = section[1:]
+                config['rules'][name] = dict(cp.items(section))
 
-def handle_osc(oscaddr, values, types, clientaddr, userdata):
-    log.debug("OSC recv: %s %r", oscaddr, values)
-    topic, msg = from_osc(oscaddr, values, types, userdata)
-    log.debug("MQTT publish: %s %s", topic, msg)
-    userdata['mqtt'].publish(topic, msg)
+    subscriptions = parse_list(config.get('subscriptions', '#'))
+    config['subscriptions'] = []
+    encode = ((lambda s: s.encode('utf-8'))
+              if isinstance(b'', str) else (lambda s: s))
+    for sub in subscriptions:
+        config['subscriptions'].append((encode(sub), 0))
 
-
-def on_connect(client, userdata, flags, rc):
-    log.debug("MQTT connect: %s", mqtt.connack_string(rc))
-    client.subscribe(b'#' if isinstance(b'', str) else '#')
-
-
-def on_disconnect(client, userdata, rc):
-    log.debug("MQTT disconnect: %s", mqtt.error_string(rc))
-
-
-def to_osc(topic, msg, data):
-    try:
-        # decodes JSON but also numeral literals like 42 or 3.14159
-        values = json.loads(msg.decode('utf-8'))
-    except (TypeError, ValueError):
-        if len(msg) == 1:
-            values = [ord(msg)]
-        else:
-            # XXX: try to decode multi-byte values as well?
-            # Which default format should we assume?
-            values = [msg]
-
-    if isinstance(values, (int, float)):
-        values = [values]
-
-    addr = '/' + topic.lstrip(data.get('prefix', '')).lstrip('/')
-    return addr, values
+    return config
 
 
-def on_message(client, userdata, msg):
-    log.debug("MQTT recv: %s %r", msg.topic, msg.payload)
-    if userdata.get('osc_receiver'):
-        addr, values = to_osc(msg.topic, msg.payload, userdata)
-        log.debug("OSC send: %s %r", addr, values)
-        userdata['osc'].send(userdata['osc_receiver'], addr, *values)
+class Osc2MqttBridge(object):
+    def __init__(self, config, converter):
+        """Setup OSC and MQTT servers.
 
+        @param config: configuration directory
+        @param converter: Osc2MqttConverter instance
 
-def parse_hostport(addr, port=9000):
-    if ('::' in addr and ']:' in addr) or ('::' not in addr and ':' in addr):
-        host, port = addr.rsplit(':', 1)
-    else:
-        host = addr
+        """
+        self.converter = converter
+        self.config = config
+        self.mqtt_host, self.mqtt_port = parse_hostport(
+            config.get("mqtt_broker", "localhost"), 1883)
+        self.osc_port = int(config.get("osc_port", 9001))
+        self.osc_receiver = config.get("osc_receiver")
+        self.subscriptions = config.get("subscriptions", ['#'])
 
-    if host.startswith('[') and host.endswith(']'):
-        host = host[1:-1]
+        if self.osc_receiver:
+            host, port = parse_hostport(self.osc_receiver, 9000)
+            self.osc_receiver = liblo.Address(host, port, liblo.UDP)
 
-    return (host, int(port))
+        self.mqttclient = mqtt.Client(config.get("client_id", "osc2mqtt"))
+        self.mqttclient.on_connect = self.mqtt_connect
+        self.mqttclient.on_disconnect = self.mqtt_disconnect
+        self.mqttclient.on_message = self.handle_mqtt
+
+        self.oscserver = liblo.ServerThread(self.osc_port)
+        self.oscserver.add_method(None, None, self.handle_osc)
+
+    def start(self):
+        """Start MQTT client and OSC listener."""
+        log.info("Connecting to MQTT broker %s:%s ...",
+            self.mqtt_host, self.mqtt_port)
+        self.mqttclient.connect(self.mqtt_host, self.mqtt_port)
+
+        log.debug("Starting MQTT thread...")
+        self.mqttclient.loop_start()
+
+        log.info("Starting OSC server listening on port %s ...", self.osc_port)
+        self.oscserver.start()
+
+    def stop(self):
+        """Method docstring."""
+        log.info("Stopping OSC server ...")
+        self.oscserver.stop()
+        log.debug("Stopping MQTT thread ...")
+        self.mqttclient.loop_stop()
+        log.info("Disconnecting from MQTT broker ...")
+        self.mqttclient.disconnect()
+
+    def mqtt_connect(self, client, userdata, flags, rc):
+        log.debug("MQTT connect: %s", mqtt.connack_string(rc))
+        if rc == 0:
+            client.subscribe(self.subscriptions)
+
+    def mqtt_disconnect(self, client, userdata, rc):
+        log.debug("MQTT disconnect: %s", mqtt.error_string(rc))
+
+    def handle_mqtt(self, client, userdata, msg):
+        log.debug("MQTT recv: %s %r", msg.topic, msg.payload)
+        if self.osc_receiver:
+            res = self.converter.from_mqtt(msg.topic, msg.payload)
+            if res:
+                log.debug("OSC send: %s %r", *res)
+                self.oscserver.send(self.osc_receiver, res[0], *res[1])
+
+    def handle_osc(self, oscaddr, values, tags, clientaddr, userdata):
+        log.debug("OSC recv: %s %r", oscaddr, values)
+        res = self.converter.from_osc(oscaddr, values, tags)
+        if res:
+            log.debug("MQTT publish: %s %s", *res)
+            self.mqttclient.publish(*res)
 
 
 def main(args=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument(
+        '-c', '--config',
+        metavar='FILENAME',
+        default='osc2mqtt.ini',
+        help="Read configuration from given filename")
     ap.add_argument(
         '-p', '--osc-port',
         type=int,
@@ -104,43 +153,25 @@ def main(args=None):
         help='Also bridge MQTT to OSC receiver addr[:port] via UDP '
              '(default: one-way)')
     ap.add_argument(
-        '-t', '--topic-prefix',
-        default='',
-        metavar='PREFIX',
-        help='MQTT topic prefix to prepend to/strip from OSC addresses')
-    ap.add_argument(
         '-v', '--verbose',
         action="store_true",
         help='Enable verbose logging')
 
     args = ap.parse_args(args if args is not None else sys.argv[1:])
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    cfg = read_config(args.config)
 
-    userdata = {'prefix': args.topic_prefix}
+    for opt in ('mqtt_broker', 'osc_port', 'osc_receiver', 'verbose'):
+        argval = getattr(args, opt)
+        if opt not in cfg or argval != ap.get_default(opt):
+            cfg[opt] = argval
 
-    if args.osc_receiver:
-        osc_host, osc_port = parse_hostport(args.osc_receiver, 9000)
-        userdata['osc_receiver'] = liblo.Address(osc_host, osc_port, liblo.UDP)
+    logging.basicConfig(level=logging.DEBUG
+        if as_bool(cfg["verbose"]) else logging.INFO)
 
-    mqttclient = mqtt.Client("osc2mqtt", userdata=userdata)
-    userdata['mqtt'] = mqttclient
-    mqttclient.on_connect = on_connect
-    mqttclient.on_disconnect = on_disconnect
-    mqttclient.on_message = on_message
-    oscserver = liblo.ServerThread(args.osc_port)
-    userdata['osc'] = oscserver
-    oscserver.add_method(None, None, handle_osc, userdata)
-
-    mqtt_host, mqtt_port = parse_hostport(args.mqtt_broker, 1883)
-    log.info("Connecting to MQTT broker %s:%s ...", mqtt_host, mqtt_port)
-    mqttclient.connect(mqtt_host, mqtt_port)
-
-    log.debug("Starting MQTT thread...")
-    mqttclient.loop_start()
-
-    log.info("Starting OSC server listening on port %s ...", args.osc_port)
-    oscserver.start()
+    converter = Osc2MqttConverter(cfg["rules"])
+    osc2mqtt = Osc2MqttBridge(cfg, converter)
+    osc2mqtt.start()
 
     try:
         while True:
@@ -148,12 +179,7 @@ def main(args=None):
     except KeyboardInterrupt:
         log.info("Interrupted.")
     finally:
-        log.info("Stopping OSC server ...")
-        oscserver.stop()
-        log.debug("Stopping MQTT thread ...")
-        mqttclient.loop_stop()
-        log.info("Disconnecting from MQTT broker ...")
-        mqttclient.disconnect()
+        osc2mqtt.stop()
         log.info("Done.")
 
 
