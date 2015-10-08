@@ -5,13 +5,17 @@
 from __future__ import absolute_import, unicode_literals
 
 import argparse
-import configparser
 import logging
 import shlex
 import sys
 import time
 
 from collections import OrderedDict
+
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 
 import liblo
 import paho.mqtt.client as mqtt
