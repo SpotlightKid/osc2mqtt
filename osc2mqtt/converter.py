@@ -22,7 +22,7 @@ except ImportError:
         from backports.functools_lru_cache import lru_cache
     except ImportError:
         # finally, backport included with package
-        from lru_cache import lru_cache
+        from .lru_cache import lru_cache
 
 
 log = logging.getLogger(__name__)
