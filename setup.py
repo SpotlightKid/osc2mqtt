@@ -38,7 +38,7 @@ readme = open('README.rst', encoding='utf-8').read()
 
 setup(
     name = name,
-    version = '0.2b1',
+    version = '0.2b2',
     description = __doc__.splitlines()[0],
     long_description = "\n".join(readme.splitlines()[2:]),
     keywords = 'osc mqtt iot',
