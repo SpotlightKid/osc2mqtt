@@ -3,7 +3,7 @@
 # start osc2mqtt.py OSC to MQTT bridge with proper hosts and ports
 #
 
-MQTT_HOST="dockstar3"
+MQTT_HOST="localhost"
 MQTT_PORT="1883"
 OSC_PORT="9001"
 
