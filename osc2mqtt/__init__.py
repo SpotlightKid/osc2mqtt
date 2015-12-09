@@ -177,7 +177,8 @@ def main(args=None):
             cfg[opt] = argval
 
     logging.basicConfig(level=logging.DEBUG
-        if as_bool(cfg["verbose"]) else logging.INFO)
+        if as_bool(cfg["verbose"]) else logging.INFO,
+        format="%(levelname)s:%(message)s")
 
     converter = Osc2MqttConverter(cfg["rules"])
     osc2mqtt = Osc2MqttBridge(cfg, converter)
