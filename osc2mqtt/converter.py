@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 class ConfigError(Exception):
-    """Raised when configuration file can not be parse correctly."""
+    """Raised when configuration file can not be parsed correctly."""
     pass
 
 
