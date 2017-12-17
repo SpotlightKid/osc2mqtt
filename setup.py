@@ -8,6 +8,8 @@
 from io import open
 from setuptools import setup
 
+from parse_requirements import parse_requirements
+
 # Add custom distribution meta-data, avoids warning when running setup
 from distutils.dist import DistributionMetadata
 DistributionMetadata.repository = None
@@ -52,10 +54,7 @@ setup(
     license = 'MIT License',
     platforms = 'POSIX, Windows, MacOS X',
     packages = ['osc2mqtt'],
-    install_requires = [
-        'paho-mqtt',
-        'pyliblo',
-    ],
+    install_requires = parse_requirements('requirements.txt'),
     entry_points = {
         'console_scripts': [
             'osc2mqtt = osc2mqtt.__main__:main'

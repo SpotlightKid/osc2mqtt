@@ -4,6 +4,8 @@ include HISTORY.rst
 include LICENSE
 include README.rst
 include osc2mqtt.ini
+include parse_requirements.py
+include requirements.txt
 
 recursive-include tests *
 recursive-exclude * __pycache__
