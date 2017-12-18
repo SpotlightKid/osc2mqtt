@@ -136,8 +136,12 @@ class Osc2MqttConverter(object):
             # add matches extracted from MQTTtopic to values
             if rule.topic_groups:
                 extra_values = match.group(*rule.topic_groups)
+
                 if len(rule.topic_groups) == 1:
                     extra_values = [extra_values]
+                else:
+                    extra_values = list(extra_values)
+
                 values = values + extra_values
 
             values = self.decode_values(payload, rule)
@@ -192,8 +196,12 @@ class Osc2MqttConverter(object):
             # add matches extracted from OSC address to values
             if rule.address_groups:
                 extra_values = match.group(*rule.address_groups)
+
                 if len(rule.address_groups) == 1:
                     extra_values = [extra_values]
+                else:
+                    extra_values = list(extra_values)
+
                 values = values + extra_values
 
             topic_kwargs = match.groupdict('')
