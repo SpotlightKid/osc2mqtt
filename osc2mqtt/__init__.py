@@ -27,12 +27,14 @@ from .util import as_bool, parse_hostport, parse_list
 log = logging.getLogger('osc2mqtt')
 
 
-def read_config(fn, options="options"):
+def read_config(filename, options="options"):
     config = {'rules': OrderedDict()}
     defaults = dict(
         match = '^/?(.*)',
         address = r'/\1',
         topic = r'\1',
+        address_groups = None,
+        topic_groups = None,
         type = 'struct',
         format = 'B',
         from_mqtt = None,
@@ -40,17 +42,19 @@ def read_config(fn, options="options"):
         osctags = None
     )
 
-    if fn:
-        cp = configparser.RawConfigParser(defaults)
-        cp.read(fn)
-        if cp.has_section(options):
-            config.update(i for i in cp.items(options)
-                          if i not in cp.items('DEFAULT'))
+    if filename:
+        parser = configparser.RawConfigParser(defaults)
+        parser.read(filename)
+        if parser.has_section(options):
+            default_options = parser.items('DEFAULT')
+            config.update(
+                (setting, value) for setting, value in parser.items(options)
+                if setting not in default_options)
 
-        for section in cp.sections():
+        for section in parser.sections():
             if section.startswith(':'):
                 name = section[1:]
-                config['rules'][name] = dict(cp.items(section))
+                config['rules'][name] = dict(parser.items(section))
 
     subscriptions = parse_list(config.get('subscriptions', '#'))
     config['subscriptions'] = []
