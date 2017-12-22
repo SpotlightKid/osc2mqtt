@@ -113,7 +113,7 @@ class Osc2MqttBridge(object):
 
     def mqtt_connect(self, client, userdata, flags, rc):
         log.debug("MQTT connect: %s", mqtt.connack_string(rc))
-        if rc == 0:
+        if rc == 0 and self.subscriptions:
             client.subscribe(self.subscriptions)
 
     def mqtt_disconnect(self, client, userdata, rc):
