@@ -6,7 +6,7 @@ An OSC_ to MQTT_ bridge based on pyliblo_ and `paho-mqtt`_.
 Quick Start
 -----------
 
-1. ``pip install osc2mqtt``
+1. ``pip install cython osc2mqtt``
 2. Get osc2mqtt.ini_ and edit the ``options`` section and set your MQTT broker
    host and port and, optionally, an OSC host and port as a reveiver.
 3. Run ``osc2mqtt -v`` and start publishing MQTT messages or sending OSC
